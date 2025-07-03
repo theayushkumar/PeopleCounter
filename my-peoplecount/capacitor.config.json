@@ -1,0 +1,10 @@
+{
+  "appId": "com.peoplecount.app",
+  "appName": "People Count",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false
+    }
+  }
+}
