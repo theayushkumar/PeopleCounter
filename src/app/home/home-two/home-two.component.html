@@ -1,0 +1,25 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Face Count (Live View)</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div style="position: relative; width: 100%; max-width: 100%;">
+    <video #video autoplay muted playsinline style="width: 100%; border-radius: 12px;"></video>
+    <canvas #overlayCanvas style="position: absolute; top: 0; left: 0;"></canvas>
+  </div>
+
+  <ion-button expand="block" color="primary" (click)="openCamera()">🎥 Open Camera</ion-button>
+  <ion-button expand="block" color="medium" (click)="captureReference()">📸 Capture Face</ion-button>
+  <ion-button expand="block" color="success" (click)="markAttendance()">✅ Mark Attendance</ion-button>
+
+  <ion-card class="ion-text-center">
+    <ion-card-header>
+      <ion-card-title>Unique People Counted</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <h2 style="font-size: 2rem; color: green;">{{ uniqueCount }}</h2>
+    </ion-card-content>
+  </ion-card>
+</ion-content>
