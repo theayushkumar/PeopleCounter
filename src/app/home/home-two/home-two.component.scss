@@ -1,6 +1,45 @@
-video {
+.camera-container {
+  position: relative;
   width: 100%;
-  height: auto;
-  border-radius: 8px;
-  background: #000;
+  aspect-ratio: 1/1;
+  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+
+  video,
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+  }
+}
+
+.info-box {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+
+  ion-card {
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+  }
+
+  .count-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--ion-color-primary);
+  }
+
+  .count-number {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 10px 0;
+    color: var(--ion-color-success);
+  }
 }

@@ -1,8 +1,7 @@
-import { Component, ElementRef, ViewChild, OnInit } from '@angular/core';
-import * as tf from '@tensorflow/tfjs';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import * as blazeface from '@tensorflow-models/blazeface';
-
-type FaceSignature = number[];
+import * as tf from '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-webgl';
 
 @Component({
   selector: 'app-home-two',
@@ -11,125 +10,129 @@ type FaceSignature = number[];
   standalone: false,
 })
 export class HomeTwoComponent implements OnInit {
-  @ViewChild('video', { static: true }) videoRef!: ElementRef<HTMLVideoElement>;
+  @ViewChild('video', { static: true }) video!: ElementRef<HTMLVideoElement>;
+  @ViewChild('canvas', { static: true }) canvas!: ElementRef<HTMLCanvasElement>;
 
+  personCount = 0;
+  faceEmbeddings: number[][] = [];
   model: blazeface.BlazeFaceModel | null = null;
-  storedSignatures: FaceSignature[] = [];
-  uniqueCount = 0;
 
   ngOnInit() {
-    this.loadModel();
+    this.setupCamera().then(() => this.loadModel());
+  }
+
+  async setupCamera() {
+    const videoEl = this.video.nativeElement;
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+    });
+    videoEl.srcObject = stream;
+    await new Promise((resolve) => (videoEl.onloadedmetadata = resolve));
+    videoEl.play();
+
+    const canvasEl = this.canvas.nativeElement;
+    canvasEl.width = videoEl.videoWidth;
+    canvasEl.height = videoEl.videoHeight;
   }
 
   async loadModel() {
-    try {
-      this.model = await blazeface.load();
-      console.log('✅ BlazeFace model loaded');
-    } catch (err) {
-      console.error('❌ Error loading model:', err);
-    }
-  }
-
-  async openCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      this.videoRef.nativeElement.srcObject = stream;
-    } catch (err) {
-      console.error('❌ Camera access error:', err);
-    }
-  }
-
-  async captureReference() {
-    const faces = await this.detectFaces();
-    if (!faces.length) {
-      alert('No face detected!');
-      return;
-    }
-
-    faces.forEach((face) => {
-      const sig = this.computeSignature(face);
-      this.storedSignatures.push(sig);
-      this.uniqueCount++;
-    });
-
-    alert(`${faces.length} face(s) added.`);
-  }
-
-  async markAttendance() {
-    const faces = await this.detectFaces();
-
-    faces.forEach((face) => {
-      const sig = this.computeSignature(face);
-      const isDuplicate = this.storedSignatures.some((ref) => {
-        return this.euclideanDistance(sig, ref) < 0.1; // Adjust threshold if needed
-      });
-
-      if (!isDuplicate) {
-        this.storedSignatures.push(sig);
-        this.uniqueCount++;
-      }
-    });
-
-    alert(`✅ Attendance processed for ${faces.length} face(s).`);
+    this.model = await blazeface.load();
+    this.detectFaces();
   }
 
   async detectFaces() {
-    if (!this.model) {
-      console.error('❌ Model not loaded');
-      return [];
-    }
+    if (!this.model) return;
 
-    return await this.model.estimateFaces(this.videoRef.nativeElement, true);
-  }
+    const videoEl = this.video.nativeElement;
+    const canvasEl = this.canvas.nativeElement;
+    const ctx = canvasEl.getContext('2d')!;
 
-  computeSignature(face: blazeface.NormalizedFace): FaceSignature {
-    let x1 = 0,
-      y1 = 0,
-      x2 = 0,
-      y2 = 0;
+    const detectLoop = async () => {
+      ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+      const predictions = await this.model!.estimateFaces(videoEl, false);
 
-    // Handle topLeft
-    if (Array.isArray(face.topLeft)) {
-      [x1, y1] = face.topLeft as [number, number];
-    } else {
-      [x1, y1] = (face.topLeft as tf.Tensor).arraySync() as [number, number];
-    }
+      if (predictions.length > 0) {
+        for (const pred of predictions) {
+          if (this.isFrontFace(pred)) {
+            const faceTensor = this.cropFace(pred, videoEl);
+            const embedding = this.createEmbedding(faceTensor);
 
-    // Handle bottomRight
-    if (Array.isArray(face.bottomRight)) {
-      [x2, y2] = face.bottomRight as [number, number];
-    } else {
-      [x2, y2] = (face.bottomRight as tf.Tensor).arraySync() as [
-        number,
-        number
-      ];
-    }
+            if (!this.isDuplicate(embedding)) {
+              this.faceEmbeddings.push(embedding);
+              this.personCount++;
+              console.log('✅ New face detected');
+            } else {
+              console.log('⛔ Duplicate skipped');
+            }
 
-    const centerX = (x1 + x2) / 2;
-    const centerY = (y1 + y2) / 2;
-
-    // Handle landmarks safely
-    let leftEye = [0, 0];
-    let rightEye = [0, 0];
-
-    if (face.landmarks) {
-      if (Array.isArray(face.landmarks)) {
-        [leftEye, rightEye] = face.landmarks as [number, number][];
-      } else if ('arraySync' in face.landmarks) {
-        const landmarksArray = (face.landmarks as tf.Tensor).arraySync() as [
-          number,
-          number
-        ][];
-        [leftEye, rightEye] = landmarksArray;
+            // Draw green box
+            const [x, y] = pred.topLeft as [number, number];
+            const [x2, y2] = pred.bottomRight as [number, number];
+            ctx.strokeStyle = 'limegreen';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, x2 - x, y2 - y);
+          }
+        }
       }
-    } else {
-      console.warn('⚠️ face.landmarks is undefined, using default [0, 0]');
-    }
 
-    return [centerX, centerY, leftEye[0], leftEye[1], rightEye[0], rightEye[1]];
+      requestAnimationFrame(detectLoop);
+    };
+
+    detectLoop();
   }
 
-  euclideanDistance(a: number[], b: number[]): number {
-    return Math.sqrt(a.reduce((sum, ai, i) => sum + (ai - b[i]) ** 2, 0));
+  isFrontFace(pred: any): boolean {
+    const landmarks = pred.landmarks;
+    if (!landmarks || landmarks.length < 2) return false;
+
+    const [rightEye, leftEye] = landmarks;
+    const dx = Math.abs(leftEye[0] - rightEye[0]);
+    const dy = Math.abs(leftEye[1] - rightEye[1]);
+    const eyeDist = Math.sqrt(dx * dx + dy * dy);
+
+    return eyeDist >= 15 && eyeDist <= 200 && dy < 20;
+  }
+
+  cropFace(pred: any, video: HTMLVideoElement): tf.Tensor3D {
+    const [x, y] = pred.topLeft as [number, number];
+    const [x2, y2] = pred.bottomRight as [number, number];
+    const width = x2 - x;
+    const height = y2 - y;
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const ctx = tempCanvas.getContext('2d')!;
+    ctx.drawImage(video, x, y, width, height, 0, 0, width, height);
+    const imageData = ctx.getImageData(0, 0, width, height);
+    return tf.browser
+      .fromPixels(imageData)
+      .resizeBilinear([128, 128])
+      .toFloat()
+      .div(tf.scalar(255));
+  }
+
+  createEmbedding(tensor: tf.Tensor3D): number[] {
+    const flat = tensor.flatten();
+    const mean = flat.mean();
+    const embedding = flat.sub(mean).arraySync() as number[];
+    tensor.dispose();
+    return embedding.slice(0, 100);
+  }
+
+  isDuplicate(newEmbedding: number[]): boolean {
+    const threshold = 0.5;
+    for (const existing of this.faceEmbeddings) {
+      const dist = this.cosineDistance(existing, newEmbedding);
+      if (dist < threshold) return true;
+    }
+    return false;
+  }
+
+  cosineDistance(a: number[], b: number[]): number {
+    const dot = a.reduce((sum, val, i) => sum + val * b[i], 0);
+    const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+    const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+    return 1 - dot / (normA * normB);
   }
 }
