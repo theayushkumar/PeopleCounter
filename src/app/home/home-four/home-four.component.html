@@ -1,0 +1,17 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Face Recognition</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <div style="position: relative;">
+    <video #video autoplay muted playsinline></video>
+    <canvas #canvas style="position: absolute; top: 0; left: 0;"></canvas>
+  </div>
+
+  <div class="info-box">
+    <p><strong>Status:</strong> {{ statusMessage }}</p>
+    <p><strong>Unique Faces Marked:</strong> {{ uniqueCount }}</p>
+  </div>
+</ion-content>
