@@ -1,4 +1,10 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  OnInit,
+  ViewChild,
+  ChangeDetectorRef,
+} from '@angular/core';
 import * as blazeface from '@tensorflow-models/blazeface';
 import * as tf from '@tensorflow/tfjs';
 import '@tensorflow/tfjs-backend-webgl';
@@ -18,6 +24,10 @@ export class HomeThreeComponent implements OnInit {
   model: blazeface.BlazeFaceModel | null = null;
   stableFace: { embedding: number[]; seenCount: number } | null = null;
 
+  statusMessage = '';
+
+  constructor(private cdr: ChangeDetectorRef) {}
+
   ngOnInit() {
     this.setupCamera().then(() => this.loadModel());
   }
@@ -28,7 +38,7 @@ export class HomeThreeComponent implements OnInit {
       video: { facingMode: 'user' },
     });
     video.srcObject = stream;
-    await new Promise((res) => (video.onloadedmetadata = res));
+    await new Promise((res) => (video.onloadedmetadata = () => res(true)));
     video.play();
 
     const canvas = this.canvas.nativeElement;
@@ -59,20 +69,25 @@ export class HomeThreeComponent implements OnInit {
           const [x, y] = pred.topLeft as [number, number];
           const [x2, y2] = pred.bottomRight as [number, number];
           ctx.strokeStyle = 'limegreen';
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 2;
           ctx.strokeRect(x, y, x2 - x, y2 - y);
 
           const faceTensor = this.cropFace(pred, video);
           const embedding = this.createEmbedding(faceTensor);
 
           if (this.isDuplicate(embedding)) {
+            this.statusMessage = '⚠️ Already Counted';
             this.stableFace = null;
           } else {
             this.checkStableFace(embedding);
           }
+
+          this.cdr.detectChanges(); // Update UI
         }
       } else {
         this.stableFace = null;
+        this.statusMessage = '';
+        this.cdr.detectChanges();
       }
 
       requestAnimationFrame(detectLoop);
@@ -90,7 +105,7 @@ export class HomeThreeComponent implements OnInit {
     const dy = Math.abs(leftEye[1] - rightEye[1]);
     const eyeDistance = Math.sqrt(dx * dx + dy * dy);
 
-    return eyeDistance >= 20 && eyeDistance <= 200 && dy < 20;
+    return eyeDistance >= 20 && eyeDistance <= 200 && dy < 15;
   }
 
   checkStableFace(embedding: number[]) {
@@ -104,14 +119,11 @@ export class HomeThreeComponent implements OnInit {
       if (this.stableFace.seenCount >= 5) {
         this.personCount++;
         this.faceEmbeddings.push(embedding);
+        this.statusMessage = '✅ Face Counted';
         this.stableFace = null;
-        console.log('✅ Face counted!');
       }
     } else {
-      this.stableFace = {
-        embedding,
-        seenCount: 1,
-      };
+      this.stableFace = { embedding, seenCount: 1 };
     }
   }
 
@@ -127,7 +139,12 @@ export class HomeThreeComponent implements OnInit {
     const ctx = tempCanvas.getContext('2d')!;
     ctx.drawImage(video, x, y, width, height, 0, 0, width, height);
     const imageData = ctx.getImageData(0, 0, width, height);
-    return tf.browser.fromPixels(imageData).resizeBilinear([96, 96]).toFloat().div(tf.scalar(255));
+
+    return tf.browser
+      .fromPixels(imageData)
+      .resizeBilinear([96, 96])
+      .toFloat()
+      .div(tf.scalar(255));
   }
 
   createEmbedding(tensor: tf.Tensor3D): number[] {
