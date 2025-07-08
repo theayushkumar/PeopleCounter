@@ -7,9 +7,10 @@ import { HomePage } from './home.page';
 import { HomePageRoutingModule } from './home-routing.module';
 import { HomeOneComponent } from './home-one/home-one.component';
 import { HomeTwoComponent } from './home-two/home-two.component';
+import { HomeThreeComponent } from './home-three/home-three.component';
 
 @NgModule({
   imports: [CommonModule, FormsModule, IonicModule, HomePageRoutingModule],
-  declarations: [HomePage, HomeOneComponent, HomeTwoComponent],
+  declarations: [HomePage, HomeOneComponent, HomeTwoComponent, HomeThreeComponent],
 })
 export class HomePageModule {}

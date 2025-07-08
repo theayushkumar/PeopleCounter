@@ -1,0 +1,23 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Face Detector</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <div class="camera-wrapper">
+    <video #video autoplay muted playsinline></video>
+    <canvas #canvas></canvas>
+  </div>
+
+  <div class="info-box">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>👤 Unique People Detected</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <h1>{{ personCount }}</h1>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>
