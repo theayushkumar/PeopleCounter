@@ -1,10 +1,17 @@
-<ion-content [fullscreen]="true" class="ion-padding">
-  <div class="camera-wrapper">
+<ion-content [fullscreen]="true">
+  <!-- Always rendered so ViewChild works -->
+  <div class="camera-wrapper" [hidden]="isLoading">
     <video #video autoplay muted playsinline></video>
     <canvas #canvas></canvas>
   </div>
 
-  <div class="info-box">
+  <!-- Shown only while loading -->
+  <div class="spinner-wrapper" *ngIf="isLoading">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Loading camera and model...</p>
+  </div>
+
+  <div class="info-box" [hidden]="isLoading">
     <ion-card>
       <ion-card-header>
         <ion-card-title>👤 Unique People Detected</ion-card-title>
