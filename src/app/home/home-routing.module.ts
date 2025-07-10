@@ -4,7 +4,6 @@ import { HomePage } from './home.page';
 import { HomeOneComponent } from './home-one/home-one.component';
 import { HomeTwoComponent } from './home-two/home-two.component';
 import { HomeThreeComponent } from './home-three/home-three.component';
-import { HomeFourComponent } from './home-four/home-four.component';
 
 const routes: Routes = [
   {
@@ -22,10 +21,6 @@ const routes: Routes = [
       {
         path: 'homethree',
         component: HomeThreeComponent,
-      },
-      {
-        path: 'homefour',
-        component: HomeFourComponent,
       },
     ],
   },
